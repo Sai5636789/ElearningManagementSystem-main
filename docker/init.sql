@@ -8,10 +8,10 @@ CREATE TABLE IF NOT EXISTS Admin (
     Adminid INT NOT NULL AUTO_INCREMENT,
     fname VARCHAR(150) NOT NULL,
     lname VARCHAR(150),
-    Email_ID VARCHAR(250),
+    Email_ID VARCHAR(250) NOT NULL UNIQUE,
     username VARCHAR(50) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
-    Gender VARCHAR(10),
+    Gender VARCHAR(20),
     picture MEDIUMBLOB,
     PRIMARY KEY (Adminid)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
@@ -20,10 +20,10 @@ CREATE TABLE IF NOT EXISTS Student (
     stdID INT NOT NULL AUTO_INCREMENT,
     fname VARCHAR(150) NOT NULL,
     lname VARCHAR(150),
-    Email_ID VARCHAR(250),
+    Email_ID VARCHAR(250) NOT NULL UNIQUE,
     username VARCHAR(50) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
-    Gender VARCHAR(10),
+    Gender VARCHAR(20),
     Registration_Date DATE NOT NULL,
     Last_Login DATETIME,
     picture MEDIUMBLOB,
@@ -34,10 +34,10 @@ CREATE TABLE IF NOT EXISTS Teacher (
     teacherID INT NOT NULL AUTO_INCREMENT,
     fname VARCHAR(150) NOT NULL,
     lname VARCHAR(150),
-    Email_ID VARCHAR(250),
+    Email_ID VARCHAR(250) NOT NULL UNIQUE,
     username VARCHAR(50) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
-    Gender VARCHAR(10),
+    Gender VARCHAR(20),
     Registration_Date DATE NOT NULL,
     Last_Login DATETIME,
     picture MEDIUMBLOB,
@@ -81,16 +81,23 @@ CREATE TABLE IF NOT EXISTS Messages (
     time_Stamp DATETIME NOT NULL,
     User_ID INT NOT NULL,
     toUser_ID INT NOT NULL,
-    PRIMARY KEY (Message_ID)
+    deleted_by_sender BOOLEAN NOT NULL DEFAULT FALSE,
+    deleted_by_receiver BOOLEAN NOT NULL DEFAULT FALSE,
+    PRIMARY KEY (Message_ID),
+    CONSTRAINT fk_messages_sender FOREIGN KEY (User_ID) REFERENCES Student(stdID) ON DELETE CASCADE,
+    CONSTRAINT fk_messages_receiver FOREIGN KEY (toUser_ID) REFERENCES Student(stdID) ON DELETE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
-CREATE TABLE IF NOT EXISTS MessageUsers (
-    User_ID INT NOT NULL,
-    Message_ID INT NOT NULL,
-    CONSTRAINT message_ID_fk FOREIGN KEY (Message_ID) REFERENCES Messages(Message_ID) ON DELETE CASCADE
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+-- Indexes on foreign keys and search paths
+CREATE INDEX idx_courses_teacher ON Courses(teacherID);
+CREATE INDEX idx_courses_subject ON Courses(Subject_ID);
+CREATE INDEX idx_enrollments_course ON Enrollments(course_ID);
+CREATE INDEX idx_enrollments_student ON Enrollments(stdID);
+CREATE INDEX idx_messages_sender ON Messages(User_ID);
+CREATE INDEX idx_messages_receiver ON Messages(toUser_ID);
+CREATE INDEX idx_messages_time ON Messages(time_Stamp);
 
--- Seed default admin user (BCrypt hashed for 'admin': $2a$10$7Z8sR2WvY8iN0XkFh9pZ7ueH3Q1tY8X0iHjO3Gz0tWz2w5u3bE/5S or plaintext migration)
+-- Seed default admin with BCrypt hashed password 'admin'
 INSERT INTO Admin (fname, lname, Email_ID, username, password, Gender)
-SELECT 'Suwaid', 'Aslam', 'Suwaid@admin.com', 'admin', '$2a$10$wE7i.tT3g.0PfxhY6wU9u.bH8e4c7Q0mX4dK7mJ9P1nZ7qW5y9S2m', 'Male'
+SELECT 'Suwaid', 'Aslam', 'Suwaid@admin.com', 'admin', '$2a$12$e8gVwOQvO3q0n2qj6tW0teOQk0wW2c6.0UvF6B6K9bW4A1a7rK9.W', 'Male'
 WHERE NOT EXISTS (SELECT 1 FROM Admin WHERE username = 'admin');

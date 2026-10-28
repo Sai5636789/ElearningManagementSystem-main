@@ -33,6 +33,20 @@ public final class DatabaseConfig {
         return getDataSource().getConnection();
     }
 
+    public static void runMigrations() {
+        try {
+            log.info("Running Flyway database migrations");
+            org.flywaydb.core.Flyway flyway = org.flywaydb.core.Flyway.configure()
+                    .dataSource(getDataSource())
+                    .baselineOnMigrate(true)
+                    .load();
+            flyway.migrate();
+            log.info("Flyway migrations completed successfully");
+        } catch (Exception e) {
+            log.warn("Database migration skipped or deferred: {}", e.getMessage());
+        }
+    }
+
     public static void closePool() {
         synchronized (DatabaseConfig.class) {
             if (dataSource != null && !dataSource.isClosed()) {
