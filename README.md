@@ -3,7 +3,7 @@
 A desktop application for managing online courses, enrollments, and student–teacher communication. Built with Java Swing and MySQL, supporting three independent user roles: Admin, Teacher, and Student.
 
 > **Original project**: [SuwaidAslam/E-Learning-System-Java-GUI-Application](https://github.com/SuwaidAslam/E-Learning-System-Java-GUI-Application).  
-> This repository is a refactored and modernized version of that codebase. The original author retains credit per the MIT License included in this repo.
+> This repository is a refactored and modernized version of that codebase. The original author retains credit per the MIT License.
 
 ---
 
@@ -145,5 +145,5 @@ The original database had plaintext passwords. The fallback lets legacy accounts
 
 ## License
 
-MIT — see [LICENSE](LICENSE).  
+MIT License.  
 Original work © Suwaid Aslam. Refactoring and modernization by [your name].
