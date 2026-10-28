@@ -1,115 +1,149 @@
-# **E-Learning System**
+# E-Learning Management System
 
-**How to run the Project:**
-1. Clone this repo using 
-   - `git clone https://github.com/SuwaidAslam/E-Learning-System-Java-GUI-Application.git`
-2. Install Netbeans 8.2
-3. Use WAMP server.
-4. First create the MySql database on WAMP server using the sql file in the repo
-5. And then build and run the LoadingScreen.java or Main.java file from the IDE. 
+A desktop application for managing online courses, enrollments, and student–teacher communication. Built with Java Swing and MySQL, supporting three independent user roles: Admin, Teacher, and Student.
 
-**Login Information** <br>
- ```
- username : admin
- password: admin 
- ```
- note: Super admin can add new admins
- 
- # Demo <br>
+> **Original project**: [SuwaidAslam/E-Learning-System-Java-GUI-Application](https://github.com/SuwaidAslam/E-Learning-System-Java-GUI-Application).  
+> This repository is a refactored and modernized version of that codebase. The original author retains credit per the MIT License included in this repo.
 
+---
 
+## What changed from the original
 
+The original codebase was a working proof-of-concept that mixed SQL directly into UI event handlers, used plaintext passwords, and ran database calls on the Swing Event Dispatch Thread. This refactor focused on making the code maintainable without changing what the application does:
 
+| Area | Before | After |
+|------|--------|-------|
+| Database access | Raw `Statement` + string concatenation in UI classes | `PreparedStatement` in dedicated DAO classes (`UserDao`, `CourseDao`, etc.) |
+| Passwords | Stored and compared as plaintext | BCrypt via `jBCrypt`; legacy plaintext verified as fallback |
+| Session state | Passed as constructor arguments between frames | `SessionContext` singleton — one place to get the logged-in user |
+| EDT safety | `Thread.sleep()` in `LoadingScreen` blocking the EDT | `SwingWorker` for all blocking operations |
+| DB credentials | Hardcoded strings | `.env` file loaded via `dotenv-java`; `DatabaseConfig` with HikariCP |
+| Build | NetBeans project file | Maven (`pom.xml`) — reproducible on any machine with JDK 17+ |
 
-https://user-images.githubusercontent.com/45914161/147848507-1b93a183-fe78-4862-b332-1742891f486e.mp4
+---
 
+## Architecture
 
+```
+com.elearning
+├── config/
+│   ├── DatabaseConfig.java   ← HikariCP pool, reads from .env
+│   └── SessionContext.java   ← in-memory session (logged-in user)
+├── dao/
+│   ├── UserDao.java          ← register, authenticate, update, delete
+│   ├── CourseDao.java        ← CRUD for courses
+│   ├── SubjectDao.java       ← subject list
+│   ├── EnrollmentDao.java    ← enroll / withdraw / list students
+│   └── MessageDao.java       ← send and retrieve inbox messages
+├── model/
+│   ├── User.java, UserSession.java, Role.java
+│   ├── Course.java, Subject.java, Message.java
+│   └── Enrollment.java
+├── ui/
+│   ├── admin/    ← Admin login, signup, dashboard, management screens
+│   ├── teacher/  ← Teacher login, signup, dashboard, course screens
+│   └── student/  ← Student login, signup, dashboard, course/messaging screens
+└── util/
+    └── PasswordUtil.java     ← BCrypt hash + verify, with plaintext fallback
+```
 
+Each DAO receives a `Connection` from `DatabaseConfig.getConnection()` (HikariCP pool) and uses only `PreparedStatement`. No SQL appears in any UI class.
 
- 
-# INTRODUCTION: <br>
-E-Learning System is a desktop-based Windows application developed in Java with Swing and AWT. This project aims at serving Students and Teachers in Online based learning. 
-Admins can add subjects, Teachers can add courses in a particular subject and Students can Enroll courses and study them, and also Students can message other participants in a particular course except the Teacher teaching that course.
+---
 
-**Hardware and software tools:**<br>
-The system services and goals are established by consultation with system user. They are then defined in details and serve as a system specification. System requirement are those on which the system runs.<br><br>
+## Prerequisites
 
-⚙️    Hardware Requirements:<br>
-*   Computer with either Intel Pentium processor or AMD processor.<br>
-*   1GB+ DDR RAM<br>
-*   1GB hard disk drive<br>
+- JDK 17 or later
+- MySQL 8.x (or Docker — see below)
+- Maven 3.8+ (or use the included `./mvnw`)
 
+---
 
-💻    Software Requirements:<br>
-*   Windows Operating system.<br>
-*   JRE and JDK.<br>	
-*   MySQL server (WAMP)<br>
+## Quick start
 
-# DESIGN<br>
-Database Design is a collection of processes that facilitate the designing, development, implementation and maintenance of enterprise data management systems.<br>
-It helps produce database systems:<br>
-*   That meet the requirements of the users<br>
-*   Have high performance.<br>
+### 1. Clone
 
-**Architecture Description** <br>
-The design of a DBMS depends on its architecture. It can be centralized or decentralized or hierarchical. The architecture of a DBMS can be seen as either single tier or multi-tier.<br><br>
-**ER Diagram**
-![image.png](diagrams/ER_Diagram.jpg)
+```bash
+git clone <your-fork-url>
+cd ElearningManagementSystem-main
+```
 
-Fig 1: ER Diagram <br><br>
-An entity–relationship model describes interrelated things of interest in a specific domain of knowledge (Refer Fig 1). It is composed of entity types and specifies relationships that can exist between instances of those entity types.
+### 2. Database
 
-**Relational Schema Diagram**
+**Option A – Docker (recommended)**
 
-![image_1.png](diagrams/Relatoinal_Schema.jpg)
+```bash
+docker compose up -d
+```
 
- Fig 2: Relational Schema <br><br>
-Relational schema is a collection of meta-data. Database schema describes the structure and constraints of data representing in a particular domain (Refer Fig 2).
+This starts MySQL on port 3306 with the schema already loaded.
 
-# IMPLEMENTATION <br>
-**Description on Implementation**<br>
-The goal of this application is to manage the Students, Teachers, Courses and various functions of E-Learning System.
+**Option B – existing MySQL**
 
-**List of modules with use cases:**<br>
-This Java project consists of 3 major modules
-*  ***Admin***<br>
-   * Admin Login with Username & Password<br>
-   * View Profile<br>
-   * View Account Information<br>
-   * Delete Account<br>
-   * Manage Account (Change email, change name, change profile, change password)<br>
-   * Admin Adds Subject<br>
-   * Admin Deletes Subject<br>
-   * View All Teachers Details and Delete Teacher<br>
-   * View All Students Details and Delete Student<br>
-   * View All Courses Details<br>
-   * Add New Admin<br>
-   * Logout<br>
-*  ***Teacher***<br>
-   *  Signup<br>
-   *  Teacher Login with Username & Password<br>
-   *  View Profile<br>
-   *  View Account Information<br>
-   *  Delete Account<br>
-   *  Manage Account (Change email, change name, change profile, change password)<br>
-   *  Teacher Adds Course<br>
-   *  View My Students in a Particular course.<br>
-   *  View My Courses<br>
-   *  Update My Course<br>
-   *  Logout<br>
-*  ***Student***<br>
-   *  Signup<br>
-   *  Student Login with Username & Password<br>
-   *  View Profile<br>
-   *  View Account Information<br>
-   *  Delete Account<br>
-   *  Manage Account (Change email, change name, change profile, change password)<br>
-   *  Student Enrols Courses<br>
-   *  Student Study Courses<br>
-   *  Student Withdraw Courses<br>
-   *  Student Views Participants in a particular course.<br>
-   *  Student can Message any participant in a particular course except Teacher.<br>
-   *  Logout<br>
+```sql
+CREATE DATABASE elearningsystem;
+USE elearningsystem;
+source ELearningSystem.sql;
+```
 
+### 3. Environment
 
+```bash
+cp .env.example .env
+# then edit .env with your DB credentials
+```
 
+```dotenv
+DB_URL=jdbc:mysql://localhost:3306/elearningsystem
+DB_USER=root
+DB_PASSWORD=yourpassword
+```
+
+### 4. Build and run
+
+```bash
+./mvnw clean package -q
+./mvnw exec:java
+```
+
+Or run `com.elearning.ui.LoadingScreen` from your IDE.
+
+**Default admin credentials** (seeded by `ELearningSystem.sql`):
+
+```
+username: admin
+password: admin
+```
+
+---
+
+## Running tests
+
+```bash
+./mvnw test
+```
+
+Unit tests for `PasswordUtil` (BCrypt + legacy fallback) and `SessionContext` run with no database. Integration tests use H2 in-memory.
+
+---
+
+## Key decisions
+
+**Why DAOs instead of helper methods?**  
+Each DAO owns one table group. If the schema changes, there is exactly one file to update. It also makes the methods easy to test in isolation.
+
+**Why `SessionContext` instead of passing the user around?**  
+Swing frames get constructed all over the place. A singleton avoids threading issues and lets any screen call `SessionContext.getCurrentUser()` without needing constructor arguments.
+
+**Why BCrypt with a plaintext fallback?**  
+The original database had plaintext passwords. The fallback lets legacy accounts log in after importing the original SQL dump; hashes get upgraded on next write.
+
+**Why `SwingWorker` instead of a plain thread?**  
+`SwingWorker.done()` runs back on the EDT, so updating labels after a DB call is safe by default. `doInBackground()` is the only place where blocking work happens.
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).  
+Original work © Suwaid Aslam. Refactoring and modernization by [your name].

@@ -95,120 +95,96 @@ public class EnrollCourse extends JFrame implements ActionListener{
         setVisible(true);
     }
     private String[] getSubjects(){
-        String[] subjectsData = null;
-        try{
-            DBConnection c1 = new DBConnection();
-
-            String q = "select * from Subjects";
-
-            ResultSet rs = c1.s.executeQuery(q);
-            int rowCount = 0;
-            while(rs.next())
-                rowCount++;
-            subjectsData = new String[rowCount];
-            rs.beforeFirst();
-            int i=0;
-            while(rs.next()){
-                subjectsData[i] = rs.getString("Name");
-                i++;
-            }
-        }catch(Exception e){
+        try {
+            com.elearning.dao.SubjectDao subjectDao = new com.elearning.dao.SubjectDao();
+            return subjectDao.findAll().stream()
+                    .map(com.elearning.model.Subject::getName)
+                    .toArray(String[]::new);
+        } catch(Exception e){
             e.printStackTrace();
+            return new String[0];
         }
-        return subjectsData;
     }
-        private void getSetCourses(int subjectID){
-            String[] coursesData;
-        try{
-            DBConnection c1 = new DBConnection();
-            String q = "select * from Courses Where Subject_ID = '"+ subjectID +"'";
 
-            ResultSet rs = c1.s.executeQuery(q);
-            int rowCount = 0;
-            while(rs.next())
-                rowCount++;
-            coursesData = new String[rowCount];
-            rs.beforeFirst();
-            int i=0;
-            while(rs.next()){
-                coursesData[i] = rs.getString("Name");
-                i++;
+    private void getSetCourses(int subjectID){
+        try {
+            com.elearning.dao.CourseDao courseDao = new com.elearning.dao.CourseDao();
+            java.util.List<com.elearning.model.Course> courses = courseDao.findAll(subjectID);
+            for (com.elearning.model.Course c : courses) {
+                coursesCb.addItem(c.getName());
             }
-            for(int j=0; j< coursesData.length ; j++)
-                coursesCb.addItem(coursesData[j]);
-        }catch(Exception e){
+        } catch(Exception e){
             e.printStackTrace();
         }
     }
+
     @Override
     public void actionPerformed(ActionEvent ae){
         if(ae.getSource() == subjectsCb){
             coursesCb.removeAllItems();
             courseDescription.setText(null);
             Object selected = subjectsCb.getSelectedItem();
+            if (selected == null) return;
             String subjectName = selected.toString();
-            try{
-                DBConnection c1 = new DBConnection();
-                String q1  = "Select Subject_ID From Subjects Where Name = '"+ subjectName +"'";
-                ResultSet rs = c1.s.executeQuery(q1); 
-                int subjectID;
-                rs.next();
-                subjectID = rs.getInt("Subject_ID");
-                this.getSetCourses(subjectID);
-            }catch(Exception e){
+            try {
+                com.elearning.dao.SubjectDao subjectDao = new com.elearning.dao.SubjectDao();
+                java.util.Optional<com.elearning.model.Subject> subjectOpt = subjectDao.findByName(subjectName);
+                if (subjectOpt.isPresent()) {
+                    this.getSetCourses(subjectOpt.get().getId());
+                }
+            } catch(Exception e){
                 e.printStackTrace();
             }
         }
         else if(ae.getSource() == coursesCb){
-            Object selectedMain = coursesCb.getSelectedItem();
-            if(selectedMain == null){
-                System.out.println("Null Value");
-            }
-            else{
-                Object selected = coursesCb.getSelectedItem();
+            Object selected = coursesCb.getSelectedItem();
+            if (selected != null) {
                 String courseName = selected.toString();
-                try{
-                    DBConnection c1 = new DBConnection();
-                    String q1  = "Select Description From Courses Where Name = '"+ courseName +"'";
-                    ResultSet rs = c1.s.executeQuery(q1);
-                    String course_Description;
-                    rs.next();
-                    course_Description = rs.getString("Description");
-    //                courseDescriptionLbl.setVisible(true);
-    //                scroll.setVisible(true);
-                    courseDescription.setText(course_Description);
-                }catch(Exception e){
+                try {
+                    com.elearning.dao.CourseDao courseDao = new com.elearning.dao.CourseDao();
+                    java.util.Optional<com.elearning.model.Course> courseOpt = courseDao.findByName(courseName);
+                    if (courseOpt.isPresent()) {
+                        courseDescription.setText(courseOpt.get().getDescription());
+                    }
+                } catch(Exception e){
                     e.printStackTrace();
                 }
             }
         }
         else if(ae.getSource() == enrollBtn){
-                String courseNameStr = coursesCb.getSelectedItem().toString();
-                java.sql.Date sqlDate = new java.sql.Date(new java.util.Date().getTime());
-                try{
-                    DBConnection c1 = new DBConnection();
-                    String q1  = "Select course_ID From Courses Where Name = '"+ courseNameStr +"'";
-                    ResultSet rs = c1.s.executeQuery(q1); 
-                    int course_ID;
-                    rs.next();
-                    course_ID = rs.getInt("course_ID");
+            if (coursesCb.getSelectedItem() == null) {
+                JOptionPane.showMessageDialog(this, "Please select a course to enroll", "Warning", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            String courseNameStr = coursesCb.getSelectedItem().toString();
+            int studentId = com.elearning.config.SessionContext.getUserIdOrDefault(StudentLogin.currentStudentID);
 
-                    String q = "INSERT INTO Enrollments (Enrollment_Date, course_ID, stdID) "
-                            + "Values ('" + sqlDate +"', '" + course_ID +"', '" + StudentLogin.currentStudentID +"')";
-
-                    int x = c1.s.executeUpdate(q);
-                    if(x == 0){
-                        JOptionPane.showMessageDialog(null, "Some Error Occured");
-                    }else{
-                        JOptionPane.showMessageDialog(null, "Course Enrollement Successfull!");
-                        dispose();
-                    }
-                }catch(Exception e){
-                    JOptionPane.showMessageDialog(null, "You are Already Enrolled in this Course!");
-                    e.printStackTrace();
+            try {
+                com.elearning.dao.CourseDao courseDao = new com.elearning.dao.CourseDao();
+                com.elearning.dao.EnrollmentDao enrollmentDao = new com.elearning.dao.EnrollmentDao();
+                java.util.Optional<com.elearning.model.Course> courseOpt = courseDao.findByName(courseNameStr);
+                if (!courseOpt.isPresent()) {
+                    JOptionPane.showMessageDialog(this, "Course not found", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
                 }
+                int courseId = courseOpt.get().getId();
+                if (enrollmentDao.isEnrolled(courseId, studentId)) {
+                    JOptionPane.showMessageDialog(this, "You are already enrolled in this Course!", "Info", JOptionPane.INFORMATION_MESSAGE);
+                    return;
+                }
+                boolean enrolled = enrollmentDao.enroll(courseId, studentId);
+                if (enrolled) {
+                    JOptionPane.showMessageDialog(this, "Course Enrollment Successful!");
+                    dispose();
+                } else {
+                    JOptionPane.showMessageDialog(this, "Failed to enroll in course", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            } catch(Exception e){
+                JOptionPane.showMessageDialog(this, "Error enrolling in course: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                e.printStackTrace();
+            }
         }
-        }
+    }
         public static void main(String[] args) {
             new EnrollCourse();
         }

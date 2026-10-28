@@ -1,61 +1,68 @@
 package com.elearning.ui.admin;
 
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Font;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
-import com.elearning.dao.DBConnection;
+import com.elearning.dao.CourseDao;
+import com.elearning.dao.SubjectDao;
+import com.elearning.model.Course;
+import com.elearning.model.Subject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.List;
+import java.util.Optional;
 
-public class ViewCourses extends JFrame implements ActionListener{
-    String columnNames[];
-    String[][] data;
-    JTable table;
-    DefaultTableModel model;
-    JLabel title, cbLbl;
-    JComboBox filterBySubjectCb;
-    JPanel middlePanel;
-    public ViewCourses(){
+public class ViewCourses extends JFrame implements ActionListener {
+    private static final Logger log = LoggerFactory.getLogger(ViewCourses.class);
+    private final CourseDao courseDao = new CourseDao();
+    private final SubjectDao subjectDao = new SubjectDao();
+
+    private final String[] columnNames = {"Course", "Subject", "Teacher Name", "Teacher Email"};
+    private JTable table;
+    private DefaultTableModel model;
+    private JLabel title, cbLbl;
+    private JComboBox<String> filterBySubjectCb;
+    private JPanel middlePanel;
+
+    public ViewCourses() {
         super("View Courses");
         setLayout(new BorderLayout());
-        
+
         title = new JLabel("Courses", JLabel.CENTER);
-        title.setFont(title.getFont().deriveFont (25.0f));
+        title.setFont(title.getFont().deriveFont(25.0f));
         title.setBackground(Color.LIGHT_GRAY);
         title.setForeground(Color.BLACK);
         title.setOpaque(true);
         add(title, BorderLayout.NORTH);
-        
-        
+
         middlePanel = new JPanel();
         middlePanel.setLayout(null);
         add(middlePanel, BorderLayout.CENTER);
-        
-        
+
         cbLbl = new JLabel("Filter By Subject");
-        cbLbl.setFont(new Font(Font.SERIF,Font.BOLD, 16));
+        cbLbl.setFont(new Font(Font.SERIF, Font.BOLD, 16));
         cbLbl.setBounds(80, 25, 120, 28);
         cbLbl.setHorizontalAlignment(JLabel.LEFT);
         middlePanel.add(cbLbl);
-        
-        filterBySubjectCb = new JComboBox(this.getSubjects());
+
+        filterBySubjectCb = new JComboBox<>(getSubjects());
         filterBySubjectCb.setBounds(200, 25, 140, 28);
         filterBySubjectCb.addActionListener(this);
         middlePanel.add(filterBySubjectCb);
-        
-        this.getCourses("");
-        model = new DefaultTableModel(data, columnNames);
+
+        model = new DefaultTableModel(columnNames, 0);
         table = new JTable(model);
         JTableHeader header = table.getTableHeader();
         header.setBackground(Color.LIGHT_GRAY);
@@ -67,102 +74,66 @@ public class ViewCourses extends JFrame implements ActionListener{
         table.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 15));
         table.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
         middlePanel.add(pane);
-        
-  
+
+        loadCourses("");
+
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setResizable(false);
-        setSize(600,450);
-        setLocation(420,260);
+        setSize(600, 450);
+        setLocation(420, 260);
         setVisible(true);
     }
-    private String[] getSubjects(){
-        String[] subjects = null;
-        try{
-            DBConnection c1 = new DBConnection();
-            String q = "select Name From Subjects";
-            
-            ResultSet rs = c1.s.executeQuery(q); 
-            int    rowCount = 0;
-            while (rs.next())
-                rowCount++;
-            subjects = new String[rowCount+1];
-            subjects[0] = "";
-            int row = 1;
-            rs.beforeFirst();
-            while (rs.next()) {
-                subjects[row] = rs.getString("Name");
-                row++;
+
+    private String[] getSubjects() {
+        try {
+            List<Subject> subjects = subjectDao.findAll();
+            String[] names = new String[subjects.size() + 1];
+            names[0] = "";
+            for (int i = 0; i < subjects.size(); i++) {
+                names[i + 1] = subjects.get(i).getName();
             }
+            return names;
+        } catch (Exception e) {
+            log.error("Failed to load subjects", e);
+            return new String[]{""};
         }
-        catch(SQLException e){
-            e.printStackTrace();
-        }
-        return subjects;
     }
-    private void getCourses(String subjectName){
-        DBConnection c1 = new DBConnection();
-        try{
-            String q = "select C.Name As Course, CONCAT(T.fname, ' ', T.lname) As Teacher_Name, T.Email_ID As Teacher_Email"
-                    + " from Courses As C"
-                    + " Inner Join Teacher As T ON T.teacherID = C.teacherID"
-                    + " Where C.Subject_ID = (select Subject_ID From Subjects Where Name = '"+ subjectName +"')";
-            if(subjectName.isEmpty()){
-                q = "select C.Name As Course, CONCAT(T.fname, ' ', T.lname) As Teacher_Name, T.Email_ID As Teacher_Email"
-                    + " from Courses As C"
-                    + " Inner Join Teacher As T ON T.teacherID = C.teacherID";
-            }
-            
-            ResultSet rs = c1.s.executeQuery(q);
-            ResultSetMetaData rsmd = rs.getMetaData();
-            int    columnCount  =  rsmd.getColumnCount();
-            int    rowCount = 0;
-            while (rs.next())
-                rowCount++;
-            // The column count starts from 1
-            columnNames = new String[columnCount];
-            int CIndex = 1;
-            for(int in = 0 ; in < columnCount; in++) {
-              columnNames[in]  = rsmd.getColumnLabel(CIndex);
-              CIndex++;
-            }
-            data = new String[rowCount][columnCount];
-            int row = 0;
-            rs.beforeFirst();
- 
-            while (rs.next()) {
-                int col = 0;
-                for (int c = 1 ; c < columnCount+1 ; c++) {
-                  data[row][col] = rs.getString(c);
-                  col++;
+
+    private void loadCourses(String subjectName) {
+        model.setRowCount(0);
+        try {
+            Integer subjectId = null;
+            if (subjectName != null && !subjectName.trim().isEmpty()) {
+                Optional<Subject> s = subjectDao.findByName(subjectName.trim());
+                if (s.isPresent()) {
+                    subjectId = s.get().getId();
                 }
-                row++;
             }
-        }
-        catch(SQLException e){
-            e.printStackTrace();
-        }
-        finally{
-            c1.Close();
+            List<Course> courses = courseDao.findAll(subjectId);
+            for (Course c : courses) {
+                model.addRow(new Object[]{
+                        c.getName(),
+                        c.getSubjectName() != null ? c.getSubjectName() : "",
+                        c.getTeacherName() != null ? c.getTeacherName() : "",
+                        c.getTeacherEmail() != null ? c.getTeacherEmail() : ""
+                });
+            }
+        } catch (Exception e) {
+            log.error("Failed to load courses", e);
+            JOptionPane.showMessageDialog(this, "Error loading courses: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
+
     @Override
     public void actionPerformed(ActionEvent e) {
-        if(e.getSource() == filterBySubjectCb){
-            // to Clear all records from JTable
-            model.setRowCount(0);
-            // to Clear all Columns from JTable
-            model.setColumnCount(0);
+        if (e.getSource() == filterBySubjectCb) {
             Object selected = filterBySubjectCb.getSelectedItem();
-            String subjectName = selected.toString();
-            this.getCourses(subjectName);
-            for(int i=0; i< columnNames.length; i++)
-                model.addColumn(columnNames[i]);
-            for(int r=0; r< data.length; r++)
-                model.addRow(data[r]);
+            String subjectName = selected != null ? selected.toString() : "";
+            loadCourses(subjectName);
         }
     }
+
     public static void main(String[] args) {
         new ViewCourses();
     }
- 
 }

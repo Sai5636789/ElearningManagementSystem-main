@@ -74,49 +74,37 @@ public class StudyCourse extends JFrame implements ActionListener{
         setLocation(420,260);
         setVisible(true);
     }
-        private String[] getCourses(){
-            String[] coursesData = null;
-            try{
-                DBConnection c1 = new DBConnection();
-                String q = "Select C.Name From Courses As C"
-                        + " Inner Join Enrollments As E ON E.course_ID = C.course_ID"
-                        + " Where E.stdID = '"+ StudentLogin.currentStudentID+"'";
-
-                ResultSet rs = c1.s.executeQuery(q);
-                int rowCount = 0;
-                while(rs.next())
-                    rowCount++;
-                coursesData = new String[rowCount];
-                rs.beforeFirst();
-                int i=0;
-                while(rs.next()){
-                    coursesData[i] = rs.getString("Name");
-                    i++;
-                }
-            }catch(Exception e){
-                e.printStackTrace();
-            }
-        return coursesData;
+    private String[] getCourses(){
+        try {
+            int studentId = com.elearning.config.SessionContext.getUserIdOrDefault(StudentLogin.currentStudentID);
+            com.elearning.dao.EnrollmentDao enrollmentDao = new com.elearning.dao.EnrollmentDao();
+            return enrollmentDao.findEnrolledCourses(studentId).stream()
+                    .map(com.elearning.model.Course::getName)
+                    .toArray(String[]::new);
+        } catch(Exception e){
+            e.printStackTrace();
+            return new String[0];
+        }
     }
+
     @Override
     public void actionPerformed(ActionEvent ae){
         if(ae.getSource() == coursesCb){
             Object selected = coursesCb.getSelectedItem();
-            String courseName = selected.toString();
-            try{
-                DBConnection c1 = new DBConnection();
-                String q1  = "Select Content From Courses Where Name = '"+ courseName +"'";
-                ResultSet rs = c1.s.executeQuery(q1); 
-                rs.next();
-                String course_Content;
-                course_Content = rs.getString("Content");
-                courseContent.setText(course_Content);
-                
-            }catch(Exception e){
-                e.printStackTrace();
+            if (selected != null) {
+                String courseName = selected.toString();
+                try {
+                    com.elearning.dao.CourseDao courseDao = new com.elearning.dao.CourseDao();
+                    java.util.Optional<com.elearning.model.Course> courseOpt = courseDao.findByName(courseName);
+                    if (courseOpt.isPresent()) {
+                        courseContent.setText(courseOpt.get().getContent());
+                    }
+                } catch(Exception e){
+                    e.printStackTrace();
+                }
             }
         }
-        }
+    }
         public static void main(String[] args) {
             new StudyCourse();
         }

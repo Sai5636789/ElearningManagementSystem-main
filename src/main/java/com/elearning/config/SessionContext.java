@@ -24,8 +24,16 @@ public final class SessionContext {
         return currentSession;
     }
 
+    public static java.util.Optional<UserSession> getSession() {
+        return java.util.Optional.ofNullable(currentSession);
+    }
+
     public static int getCurrentUserId() {
         return currentSession != null ? currentSession.getId() : 0;
+    }
+
+    public static int getUserIdOrDefault(int defaultId) {
+        return currentSession != null ? currentSession.getId() : defaultId;
     }
 
     public static Role getCurrentRole() {

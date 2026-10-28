@@ -57,24 +57,20 @@ public class Admin extends JFrame implements ActionListener, WindowStateListener
         
         
         //get Name and Profile from database
-        String firstName = null,lastName = null;
+        String firstName = null, lastName = null;
         byte[] bytImage = null;
-        try{
-            DBConnection c1 = new DBConnection();
-            
-            PreparedStatement ps = c1.c.prepareStatement("select * from Admin where Adminid = '"+ AdminLogin.currentAdminID +"'");
-            ResultSet rs = ps.executeQuery();
-
-            if(rs.next()){
-                firstName = rs.getString("fname");
-                lastName = rs.getString("lname");
-                //get image as byte
-                bytImage = rs.getBytes("picture");
-            }else{
+        try {
+            int adminId = com.elearning.config.SessionContext.getUserIdOrDefault(AdminLogin.currentAdminID);
+            com.elearning.dao.UserDao userDao = new com.elearning.dao.UserDao();
+            java.util.Optional<com.elearning.model.User> adminUser = userDao.findById(adminId, com.elearning.model.Role.ADMIN);
+            if (adminUser.isPresent()) {
+                firstName = adminUser.get().getFirstName();
+                lastName = adminUser.get().getLastName();
+                bytImage = adminUser.get().getPicture();
+            } else {
                 JOptionPane.showMessageDialog(null, "Not Found");
             }
-            ps.close();
-        }catch(HeadlessException | NumberFormatException | SQLException e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
         
@@ -277,7 +273,8 @@ public class Admin extends JFrame implements ActionListener, WindowStateListener
             JOptionPane.showMessageDialog(this, new ImageIcon(bufferedImage), "Profile Picture", JOptionPane.PLAIN_MESSAGE);
         }
         else if(ae.getSource() == logoutBtn){
-            JOptionPane.showMessageDialog(null, "Loggin Out...");
+            com.elearning.config.SessionContext.clear();
+            JOptionPane.showMessageDialog(null, "Logging Out...");
             new Main();
             dispose();
         }

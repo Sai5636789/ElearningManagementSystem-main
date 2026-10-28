@@ -76,26 +76,28 @@ CREATE TABLE IF NOT EXISTS Enrollments (
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
 CREATE TABLE IF NOT EXISTS Messages (
-    Message_ID INT NOT NULL AUTO_INCREMENT,
-    message VARCHAR(2000) NOT NULL,
-    time_Stamp DATETIME NOT NULL,
-    User_ID INT NOT NULL,
-    toUser_ID INT NOT NULL,
-    deleted_by_sender BOOLEAN NOT NULL DEFAULT FALSE,
-    deleted_by_receiver BOOLEAN NOT NULL DEFAULT FALSE,
+    Message_ID          INT           NOT NULL AUTO_INCREMENT,
+    message             VARCHAR(2000) NOT NULL,
+    time_Stamp          DATETIME      NOT NULL,
+    User_ID             INT           NOT NULL,
+    toUser_ID           INT           NOT NULL,
+    sender_role         VARCHAR(10)   NOT NULL DEFAULT 'STUDENT',
+    deleted_by_sender   TINYINT(1)    NOT NULL DEFAULT 0,
+    deleted_by_receiver TINYINT(1)    NOT NULL DEFAULT 0,
     PRIMARY KEY (Message_ID),
-    CONSTRAINT fk_messages_sender FOREIGN KEY (User_ID) REFERENCES Student(stdID) ON DELETE CASCADE,
-    CONSTRAINT fk_messages_receiver FOREIGN KEY (toUser_ID) REFERENCES Student(stdID) ON DELETE CASCADE
+    INDEX idx_messages_to   (toUser_ID),
+    INDEX idx_messages_from (User_ID),
+    INDEX idx_messages_time (time_Stamp)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
--- Indexes on foreign keys and search paths
-CREATE INDEX idx_courses_teacher ON Courses(teacherID);
-CREATE INDEX idx_courses_subject ON Courses(Subject_ID);
-CREATE INDEX idx_enrollments_course ON Enrollments(course_ID);
-CREATE INDEX idx_enrollments_student ON Enrollments(stdID);
-CREATE INDEX idx_messages_sender ON Messages(User_ID);
-CREATE INDEX idx_messages_receiver ON Messages(toUser_ID);
-CREATE INDEX idx_messages_time ON Messages(time_Stamp);
+-- Unified view: resolves any (user_id, role) pair to a name without needing
+-- to know which table to query. Used by MessageDao.getInbox().
+CREATE OR REPLACE VIEW Users AS
+    SELECT Adminid   AS user_id, 'ADMIN'   AS role, fname, lname, Email_ID, username FROM Admin
+    UNION ALL
+    SELECT teacherID,            'TEACHER', fname, lname, Email_ID, username FROM Teacher
+    UNION ALL
+    SELECT stdID,                'STUDENT', fname, lname, Email_ID, username FROM Student;
 
 -- Seed default admin with BCrypt hashed password 'admin'
 INSERT INTO Admin (fname, lname, Email_ID, username, password, Gender)

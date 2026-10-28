@@ -92,64 +92,60 @@ public class UpdateCourses extends JFrame implements ActionListener{
     }
 
     private String[] getMyCourses(){
-        String data[] = null;
-    try{
-        DBConnection c1 = new DBConnection();
-        String q1  = "Select Course_ID, Name From Courses Where teacherID = '"+ TeacherLogin.currentTeacherID +"'";
-        ResultSet rs = c1.s.executeQuery(q1);
-        int rowCount = 0;
-        while (rs.next())
-            rowCount++;
-        data = new String[rowCount];
-        int row = 0;
-        rs.beforeFirst();
-        while (rs.next()) {
-            data[row] = rs.getString("Name");
-            row++;
+        try {
+            int teacherId = com.elearning.config.SessionContext.getUserIdOrDefault(TeacherLogin.currentTeacherID);
+            com.elearning.dao.CourseDao courseDao = new com.elearning.dao.CourseDao();
+            return courseDao.findByTeacher(teacherId).stream()
+                    .map(com.elearning.model.Course::getName)
+                    .toArray(String[]::new);
+        } catch(Exception e){
+            e.printStackTrace();
+            return new String[0];
         }
-    }catch(Exception e){
-        e.printStackTrace();
-        }
-        return data;
     }
     
     @Override
     public void actionPerformed(ActionEvent e) {
         if(e.getSource() == courseCb){
             Object selected = courseCb.getSelectedItem();
+            if (selected == null) return;
             String courseName = selected.toString();
-            try{
-                DBConnection c1 = new DBConnection();
-                String q1  = "Select Description, Content From Courses As C"
-                        + " Where C.Name = '"+ courseName +"' And C.teacherID = '"+ TeacherLogin.currentTeacherID +"'";
-                ResultSet rs = c1.s.executeQuery(q1); 
-                rs.next();
-                courseDescription.setText(rs.getString("Description"));
-                courseContent.setText(rs.getString("Content"));
-                
-            }catch(Exception exception){
+            try {
+                com.elearning.dao.CourseDao courseDao = new com.elearning.dao.CourseDao();
+                java.util.Optional<com.elearning.model.Course> courseOpt = courseDao.findByName(courseName);
+                if (courseOpt.isPresent()) {
+                    courseDescription.setText(courseOpt.get().getDescription());
+                    courseContent.setText(courseOpt.get().getContent());
+                }
+            } catch(Exception exception){
                 exception.printStackTrace();
             }
         }
         else if(e.getSource() == updateBtn){
             Object selected = courseCb.getSelectedItem();
+            if (selected == null) {
+                JOptionPane.showMessageDialog(this, "Please select a course to update", "Warning", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
             String courseName = selected.toString();
             String courseDescriptionStr = courseDescription.getText();
             String courseContentStr = courseContent.getText();
-            try{
-                DBConnection c1 = new DBConnection();
-                String q1  = "Update Courses Set Description = '"+ courseDescriptionStr +"', Content = '"+ courseContentStr +"'"
-                        + " Where Name = '"+ courseName +"'";
-                
-                int x = c1.s.executeUpdate(q1);
-                if(x == 0){
-                    JOptionPane.showMessageDialog(null, "Got some error");
-                }else{
-                    JOptionPane.showMessageDialog(null, "Course Updated Successfully");
-                    setVisible(false);
+            try {
+                com.elearning.dao.CourseDao courseDao = new com.elearning.dao.CourseDao();
+                java.util.Optional<com.elearning.model.Course> courseOpt = courseDao.findByName(courseName);
+                if (courseOpt.isPresent()) {
+                    boolean ok = courseDao.updateCourse(courseOpt.get().getId(), courseDescriptionStr, courseContentStr);
+                    if (ok) {
+                        JOptionPane.showMessageDialog(this, "Course Updated Successfully");
+                        setVisible(false);
+                    } else {
+                        JOptionPane.showMessageDialog(this, "Failed to update course", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                } else {
+                    JOptionPane.showMessageDialog(this, "Course not found", "Error", JOptionPane.ERROR_MESSAGE);
                 }
-            }catch(Exception exc){
-                JOptionPane.showMessageDialog(null, "This Course is Already being Offered By other Teacher!");
+            } catch(Exception exc){
+                JOptionPane.showMessageDialog(this, "Error updating course: " + exc.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
                 exc.printStackTrace();
             }
         }

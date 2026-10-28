@@ -60,57 +60,53 @@ public class WithdrawCourse extends JFrame implements ActionListener{
         setVisible(true);
     }
     private String[] getCourses(){
-        String[] courseData = null;
-        try{
-            DBConnection c1 = new DBConnection();
-
-            String q = "select C.Name from Courses As C"
-                    + " Inner Join Enrollments As E ON E.course_ID = C.course_ID"
-                    + " Where E.stdID = '"+ StudentLogin.currentStudentID +"'";
-
-            ResultSet rs = c1.s.executeQuery(q);
-            int rowCount = 0;
-            while(rs.next())
-                rowCount++;
-            courseData = new String[rowCount];
-            rs.beforeFirst();
-            int i=0;
-            while(rs.next()){
-                courseData[i] = rs.getString("Name");
-                i++;
-            }
-        }catch(Exception e){
+        try {
+            int studentId = com.elearning.config.SessionContext.getUserIdOrDefault(StudentLogin.currentStudentID);
+            com.elearning.dao.EnrollmentDao enrollmentDao = new com.elearning.dao.EnrollmentDao();
+            return enrollmentDao.findEnrolledCourses(studentId).stream()
+                    .map(com.elearning.model.Course::getName)
+                    .toArray(String[]::new);
+        } catch(Exception e){
             e.printStackTrace();
+            return new String[0];
         }
-        return courseData;
     }
     @Override
     public void actionPerformed(ActionEvent ae){
         if(ae.getSource() == withdrawBtn){
             Object selected = courseCb.getSelectedItem();
-            String course_Name = selected.toString();
-            int input = JOptionPane.showConfirmDialog(null, "Are you sure you want to Withdraw this Course?", "Select an Option...",
-            JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
+            if (selected == null) {
+                JOptionPane.showMessageDialog(this, "Please select a course to withdraw from", "Warning", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            String courseName = selected.toString();
+            int input = JOptionPane.showConfirmDialog(this, "Are you sure you want to Withdraw from this Course?", "Confirm Withdrawal",
+                    JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
             
-            if(input == 0){
-                try{
-                    DBConnection c1 = new DBConnection();
-
-                    String q = "Delete From Enrollments Where course_ID = (Select course_ID From Courses Where Name = '"+ course_Name +"')"
-                            + " And stdID = '"+ StudentLogin.currentStudentID +"'";
-                    int x = c1.s.executeUpdate(q);
-                    if(x == 0){
-                        JOptionPane.showMessageDialog(null, "Got some error");
-                    }else{
-                        JOptionPane.showMessageDialog(null, "Course Withdrawn Successfully");
-                        dispose();
+            if(input == JOptionPane.YES_OPTION){
+                try {
+                    int studentId = com.elearning.config.SessionContext.getUserIdOrDefault(StudentLogin.currentStudentID);
+                    com.elearning.dao.CourseDao courseDao = new com.elearning.dao.CourseDao();
+                    com.elearning.dao.EnrollmentDao enrollmentDao = new com.elearning.dao.EnrollmentDao();
+                    java.util.Optional<com.elearning.model.Course> courseOpt = courseDao.findByName(courseName);
+                    if (courseOpt.isPresent()) {
+                        boolean ok = enrollmentDao.withdraw(courseOpt.get().getId(), studentId);
+                        if (ok) {
+                            JOptionPane.showMessageDialog(this, "Course Withdrawn Successfully");
+                            dispose();
+                        } else {
+                            JOptionPane.showMessageDialog(this, "Failed to withdraw course", "Error", JOptionPane.ERROR_MESSAGE);
+                        }
+                    } else {
+                        JOptionPane.showMessageDialog(this, "Course not found", "Error", JOptionPane.ERROR_MESSAGE);
                     }
-            }catch(Exception e){
-                e.printStackTrace();
+                } catch(Exception e){
+                    JOptionPane.showMessageDialog(this, "Error withdrawing course: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+                    e.printStackTrace();
                 }
             }
         }
-        }
+    }
         public static void main(String[] args) {
             new WithdrawCourse();
         }

@@ -1,23 +1,11 @@
 package com.elearning.ui.admin;
 
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.HeadlessException;
-import java.awt.Image;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import com.elearning.dao.DBConnection;
+import com.elearning.dao.UserDao;
+import com.elearning.model.Role;
+import com.elearning.model.User;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
@@ -28,35 +16,54 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.Image;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.util.List;
 
-public class ViewStudents extends JFrame implements ActionListener{
-    String columnNames[];
-    Object[][] data;
-    JTable table;
-    JButton deleteButton;
-    DefaultTableModel model;
-    JLabel title;
-    public ViewStudents(){
+public class ViewStudents extends JFrame implements ActionListener {
+    private static final Logger log = LoggerFactory.getLogger(ViewStudents.class);
+    private final UserDao userDao = new UserDao();
+
+    private final String[] columnNames = {"ID", "First Name", "Last Name", "Email", "Username", "Gender", "Picture"};
+    private JTable table;
+    private JButton deleteButton;
+    private DefaultTableModel model;
+    private JLabel title;
+
+    public ViewStudents() {
         super("View Students");
         setLayout(new BorderLayout());
-        
+
         title = new JLabel("Students", JLabel.CENTER);
-        title.setFont(title.getFont().deriveFont (25.0f));
+        title.setFont(title.getFont().deriveFont(25.0f));
         title.setBackground(Color.LIGHT_GRAY);
         title.setForeground(Color.BLACK);
         title.setOpaque(true);
         add(title, BorderLayout.NORTH);
-        
-        this.getStudents();
-        model = new DefaultTableModel(data, columnNames){
-        @Override
-        public Class<?> getColumnClass(int column) {
-            switch(column) {
-                case 9: return ImageIcon.class;
-                default: return Object.class;
+
+        model = new DefaultTableModel(columnNames, 0) {
+            @Override
+            public Class<?> getColumnClass(int column) {
+                if (column == 6) {
+                    return ImageIcon.class;
+                }
+                return Object.class;
             }
-        }
+
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
         };
+
         table = new JTable(model);
         JTableHeader header = table.getTableHeader();
         header.setBackground(Color.LIGHT_GRAY);
@@ -68,105 +75,89 @@ public class ViewStudents extends JFrame implements ActionListener{
         table.setPreferredScrollableViewportSize(table.getPreferredSize());
         table.setRowHeight(96);
         add(pane, BorderLayout.CENTER);
-        
+
         deleteButton = new JButton("Delete");
         deleteButton.setHorizontalAlignment(JButton.CENTER);
         deleteButton.addActionListener(this);
-        deleteButton.setToolTipText( "Click to Delete Selected Record." );
+        deleteButton.setToolTipText("Click to Delete Selected Record.");
         deleteButton.setPreferredSize(new Dimension(20, 50));
         add(deleteButton, BorderLayout.SOUTH);
 
+        loadStudents();
+
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        setSize(1000,500);
-        setLocation(250,200);
+        setSize(1000, 500);
+        setLocation(250, 200);
         setVisible(true);
     }
-    private void getStudents(){
-        DBConnection c1 = new DBConnection();
-        try{
-            String q = "select * from Student";
-            ResultSet rs = c1.s.executeQuery(q); 
-            ResultSetMetaData rsmd = rs.getMetaData();
-            int    columnCount  =  rsmd.getColumnCount();
-            int    rowCount = 0;
-            while (rs.next())
-                rowCount++;
-            // The column count starts from 1
-            columnNames = new String[columnCount];
-            int CIndex = 1;
-            for(int in = 0 ; in < columnCount; in++) {
-              columnNames[in]  = rsmd.getColumnName(CIndex);
-              CIndex++;
+
+    private void loadStudents() {
+        model.setRowCount(0);
+        try {
+            List<User> students = userDao.findAllByRole(Role.STUDENT);
+            for (User s : students) {
+                ImageIcon icon = getImageIcon(s.getPicture());
+                model.addRow(new Object[]{
+                        s.getId(),
+                        s.getFirstName(),
+                        s.getLastName(),
+                        s.getEmail(),
+                        s.getUsername(),
+                        s.getGender(),
+                        icon
+                });
             }
-            data = new Object[rowCount][columnCount];
-            int row = 0;
-            rs.beforeFirst();
-            while (rs.next()) {
-                byte[] bytImage = null;
-                for (int c = 0 ; c < columnCount; c++) {
-                    if(columnNames[c].equalsIgnoreCase("picture")){
-                        bytImage = rs.getBytes(columnNames[c]);
-                        data[row][c] =  getImageIcon(bytImage);
-                    }
-                    else
-                        data[row][c] = rs.getString(columnNames[c]);
-                }
-                row++;
-            }
-        }
-        catch(SQLException e){
-            e.printStackTrace();
-        }
-        finally{
-            c1.Close();
+        } catch (Exception e) {
+            log.error("Failed to load students", e);
+            JOptionPane.showMessageDialog(this, "Error loading students: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
         }
     }
-    private ImageIcon getImageIcon(byte[] byteImage){
-        InputStream is = new ByteArrayInputStream(byteImage);
-        BufferedImage bufferedImage = null;
-         try {
-             bufferedImage = ImageIO.read(is);
-         } catch (IOException ex) {
-             Logger.getLogger(Admin.class.getName()).log(Level.SEVERE, null, ex);
-         }
-         
-        ImageIcon icon = new ImageIcon(bufferedImage);
-        Image i2 = icon.getImage().getScaledInstance(96 ,96 ,Image.SCALE_DEFAULT);
-        ImageIcon i3 =  new ImageIcon(i2);
-         return i3;
+
+    private ImageIcon getImageIcon(byte[] byteImage) {
+        if (byteImage == null || byteImage.length == 0) {
+            return null;
+        }
+        try (InputStream is = new ByteArrayInputStream(byteImage)) {
+            BufferedImage bufferedImage = ImageIO.read(is);
+            if (bufferedImage != null) {
+                Image scaled = bufferedImage.getScaledInstance(96, 96, Image.SCALE_SMOOTH);
+                return new ImageIcon(scaled);
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to decode student picture", ex);
+        }
+        return null;
     }
+
     @Override
-    public void actionPerformed(ActionEvent ae){
-        if(ae.getSource() == deleteButton){
-            // check for selected row first
-            if(table.getSelectedRow() != -1) {
-                int rowNum = table.getSelectedRow();
-                // 0 is the Column index which is ID
-                String id = model.getValueAt(rowNum,0).toString();
-                
-                DBConnection c1 = new DBConnection();
-                try{
-                    String q = "Delete From Student Where stdID ='"+id+"'";
-                    int x = c1.s.executeUpdate(q); 
-                    if(x == 0){
-                        JOptionPane.showMessageDialog(null, "Error Occured");
-                    }else{
-                         JOptionPane.showMessageDialog(null, "Selected row deleted successfully");
-                         dispose();
-                         new ViewStudents();
+    public void actionPerformed(ActionEvent ae) {
+        if (ae.getSource() == deleteButton) {
+            int selectedRow = table.getSelectedRow();
+            if (selectedRow != -1) {
+                int id = Integer.parseInt(model.getValueAt(selectedRow, 0).toString());
+                int confirm = JOptionPane.showConfirmDialog(this, "Are you sure you want to delete this student?",
+                        "Confirm Delete", JOptionPane.YES_NO_OPTION);
+                if (confirm == JOptionPane.YES_OPTION) {
+                    try {
+                        boolean ok = userDao.deleteAccount(id, Role.STUDENT);
+                        if (ok) {
+                            JOptionPane.showMessageDialog(this, "Student deleted successfully");
+                            loadStudents();
+                        } else {
+                            JOptionPane.showMessageDialog(this, "Failed to delete student", "Error", JOptionPane.ERROR_MESSAGE);
+                        }
+                    } catch (Exception exception) {
+                        log.error("Failed to delete student", exception);
+                        JOptionPane.showMessageDialog(this, "Error: " + exception.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
                     }
                 }
-                catch(HeadlessException | SQLException exception){
-                    exception.printStackTrace();
-                }
-                finally{
-                    c1.Close();
-                }
+            } else {
+                JOptionPane.showMessageDialog(this, "Please select a student row first", "Warning", JOptionPane.WARNING_MESSAGE);
             }
         }
     }
+
     public static void main(String[] args) {
         new ViewStudents();
     }
- 
 }

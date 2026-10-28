@@ -115,55 +115,54 @@ public class AddCourse extends JFrame implements ActionListener{
         setVisible(true);
     }
     private void getSubjects(){
-        try{
-            DBConnection c1 = new DBConnection();
-
-            String q = "select * from Subjects";
-
-            ResultSet rs = c1.s.executeQuery(q);
-            int rowCount = 0;
-            while(rs.next())
-                rowCount++;
-            SubjectsData = new String[rowCount];
-            rs.beforeFirst();
-            int i=0;
-            while(rs.next()){
-                SubjectsData[i] = rs.getString("Name");
-                i++;
-            }
-        }catch(Exception e){
+        try {
+            com.elearning.dao.SubjectDao subjectDao = new com.elearning.dao.SubjectDao();
+            SubjectsData = subjectDao.findAll().stream()
+                    .map(com.elearning.model.Subject::getName)
+                    .toArray(String[]::new);
+        } catch(Exception e){
             e.printStackTrace();
+            SubjectsData = new String[0];
         }
     }
     @Override
     public void actionPerformed(ActionEvent ae){
         if(ae.getSource() == addBtn){
+            if (subjectsCb.getSelectedItem() == null) {
+                JOptionPane.showMessageDialog(this, "Please select a subject", "Warning", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
             String subjectStr = subjectsCb.getSelectedItem().toString();
-            String courseNameStr = courseName.getText();
-            String courseDescriptionStr = courseDescription.getText();
-            String courseContentStr = courseContent.getText();
-            try{
-                DBConnection c1 = new DBConnection();
-                String q1  = "Select Subject_ID From Subjects  Where Name = '"+ subjectStr +"'";
-                ResultSet rs = c1.s.executeQuery(q1); 
-                int subject_ID;
-                rs.next();
-                subject_ID = rs.getInt("Subject_ID");
-                
-                String q = "INSERT INTO Courses (Name, Description, Content, teacherID, Subject_ID) "
-                        + "Values ('" + courseNameStr +"', '" + courseDescriptionStr +"', '" + courseContentStr +"', "
-                        + TeacherLogin.currentTeacherID +", " + subject_ID + ")";
+            String courseNameStr = courseName.getText().trim();
+            String courseDescriptionStr = courseDescription.getText().trim();
+            String courseContentStr = courseContent.getText().trim();
 
-                int x = c1.s.executeUpdate(q);
-                if(x == 0){
-                    JOptionPane.showMessageDialog(null, "Some Error Occured");
-                }else{
-                    JOptionPane.showMessageDialog(null, "Course Added!");
-                    dispose();
+            if (courseNameStr.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Course name cannot be empty", "Warning", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            try {
+                com.elearning.dao.SubjectDao subjectDao = new com.elearning.dao.SubjectDao();
+                java.util.Optional<com.elearning.model.Subject> subjectOpt = subjectDao.findByName(subjectStr);
+                if (!subjectOpt.isPresent()) {
+                    JOptionPane.showMessageDialog(this, "Subject not found", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
                 }
-            }catch(Exception e){
-                JOptionPane.showMessageDialog(null, "This Course is Already being Offered By other Teacher!");
-                e.printStackTrace();
+                int subjectId = subjectOpt.get().getId();
+                int teacherId = com.elearning.config.SessionContext.getUserIdOrDefault(TeacherLogin.currentTeacherID);
+
+                com.elearning.dao.CourseDao courseDao = new com.elearning.dao.CourseDao();
+                com.elearning.model.Course course = new com.elearning.model.Course(0, courseNameStr, courseDescriptionStr, courseContentStr, teacherId, subjectId);
+                boolean success = courseDao.addCourse(course);
+                if (success) {
+                    JOptionPane.showMessageDialog(this, "Course Added!");
+                    dispose();
+                } else {
+                    JOptionPane.showMessageDialog(this, "Failed to add course", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            } catch(Exception e){
+                JOptionPane.showMessageDialog(this, "This Course is already being offered or error occurred: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }

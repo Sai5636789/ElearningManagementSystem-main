@@ -61,57 +61,50 @@ public class DeleteSubject extends JFrame implements ActionListener{
         setVisible(true);
     }
     private String[] getSubjects(){
-        String[] subjectsData = null;
-        try{
-            DBConnection c1 = new DBConnection();
-
-            String q = "select * from Subjects";
-
-            ResultSet rs = c1.s.executeQuery(q);
-            int rowCount = 0;
-            while(rs.next())
-                rowCount++;
-            subjectsData = new String[rowCount];
-            rs.beforeFirst();
-            int i=0;
-            while(rs.next()){
-                subjectsData[i] = rs.getString("Name");
-                i++;
-            }
-        }catch(Exception e){
+        try {
+            com.elearning.dao.SubjectDao subjectDao = new com.elearning.dao.SubjectDao();
+            return subjectDao.findAll().stream()
+                    .map(com.elearning.model.Subject::getName)
+                    .toArray(String[]::new);
+        } catch(Exception e){
             e.printStackTrace();
+            return new String[0];
         }
-        return subjectsData;
     }
     @Override
     public void actionPerformed(ActionEvent ae){
         if(ae.getSource() == deleteBtn){
             Object selected = subjectsCb.getSelectedItem();
+            if (selected == null) {
+                JOptionPane.showMessageDialog(this, "Please select a subject to delete", "Warning", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
             String subjectName = selected.toString();
-            int input = JOptionPane.showConfirmDialog(null, "Deleting Subject will delete all Corresponding Courses to this subject"
-                    + ", do you want to proceed?", "Select an Option...",
-            JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
+            int input = JOptionPane.showConfirmDialog(this, "Deleting Subject will delete all Corresponding Courses to this subject"
+                    + ", do you want to proceed?", "Confirm Deletion",
+                    JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
             
-            if(input == 0){
-                DBConnection c1 = new DBConnection();
-                try{
-                    String q = "Delete From Subjects Where Name ='" + subjectName + "'";
-                    int x = c1.s.executeUpdate(q);
-                    if(x == 0){
-                        JOptionPane.showMessageDialog(null, "Got some error");
-                    }else{
-                        JOptionPane.showMessageDialog(null, "Subject Deleted Successfully");
-                        dispose();
+            if(input == JOptionPane.YES_OPTION){
+                try {
+                    com.elearning.dao.SubjectDao subjectDao = new com.elearning.dao.SubjectDao();
+                    java.util.Optional<com.elearning.model.Subject> subjectOpt = subjectDao.findByName(subjectName);
+                    if (subjectOpt.isPresent()) {
+                        boolean ok = subjectDao.deleteSubject(subjectOpt.get().getId());
+                        if (ok) {
+                            JOptionPane.showMessageDialog(this, "Subject Deleted Successfully");
+                            dispose();
+                        } else {
+                            JOptionPane.showMessageDialog(this, "Failed to delete subject", "Error", JOptionPane.ERROR_MESSAGE);
+                        }
+                    } else {
+                        JOptionPane.showMessageDialog(this, "Subject not found", "Error", JOptionPane.ERROR_MESSAGE);
                     }
-            }catch(Exception e){
-                e.printStackTrace();
-                }
-            finally{
-                c1.Close();
+                } catch(Exception e){
+                    JOptionPane.showMessageDialog(this, "Error deleting subject: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
                 }
             }
         }
-        }
+    }
         public static void main(String[] args) {
             new DeleteSubject();
         }

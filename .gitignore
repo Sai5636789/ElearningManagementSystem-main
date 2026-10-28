@@ -1,11 +1,25 @@
+# Build output
 target/
 *.class
-.DS_Store
+*.jar
+*.war
+
+# Environment / secrets
 .env
+
+# Logs
 *.log
+logs/
+
+# macOS
+.DS_Store
+
+# IDE
 .idea/
 *.iml
 .vscode/
 .settings/
 .project
 .classpath
+nbproject/
+nbactions.xml

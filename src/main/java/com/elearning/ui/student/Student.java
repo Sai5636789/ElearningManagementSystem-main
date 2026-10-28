@@ -64,32 +64,35 @@ public class Student extends JFrame implements ActionListener, WindowStateListen
         //
         String firstName = null, lastName = null, gender = "";
         byte[] bytImage = null;
-        try{
-            DBConnection c1 = new DBConnection();
-            PreparedStatement ps = c1.c.prepareStatement("select * from Student where stdID = '"+ StudentLogin.currentStudentID +"'");
-            ResultSet rs = ps.executeQuery();
-            
-            if(rs.next()){
-                firstName = rs.getString("fname");
-                lastName = rs.getString("lname");
-                gender = rs.getString("Gender");
-                //get image as byte
-                bytImage = rs.getBytes("picture");
-            }else{
+        try {
+            int studentId = com.elearning.config.SessionContext.getUserIdOrDefault(StudentLogin.currentStudentID);
+            com.elearning.dao.UserDao userDao = new com.elearning.dao.UserDao();
+            java.util.Optional<com.elearning.model.User> studentUser = userDao.findById(studentId, com.elearning.model.Role.STUDENT);
+            if (studentUser.isPresent()) {
+                firstName = studentUser.get().getFirstName();
+                lastName = studentUser.get().getLastName();
+                gender = studentUser.get().getGender();
+                bytImage = studentUser.get().getPicture();
+            } else {
                 JOptionPane.showMessageDialog(null, "Not Found");
             }
-        }catch(HeadlessException | NumberFormatException | SQLException e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
         
         //sidePanel Code
-        InputStream is = new ByteArrayInputStream(bytImage);
-        try {
-            bufferedImage = ImageIO.read(is);
-        } catch (IOException ex) {
-            Logger.getLogger(Admin.class.getName()).log(Level.SEVERE, null, ex);
+        if (bytImage != null) {
+            InputStream is = new ByteArrayInputStream(bytImage);
+            try {
+                bufferedImage = ImageIO.read(is);
+                usericon = new JLabel(resizeImage(bufferedImage));
+            } catch (IOException ex) {
+                Logger.getLogger(Student.class.getName()).log(Level.SEVERE, null, ex);
+                usericon = new JLabel(new ImageIcon(ClassLoader.getSystemResource("icons/uploadPicIcon.png")));
+            }
+        } else {
+            usericon = new JLabel(new ImageIcon(ClassLoader.getSystemResource("icons/uploadPicIcon.png")));
         }
-        usericon = new JLabel(resizeImage(bufferedImage));
         usericon.setBounds(38, 5, 96, 96);
         usericon.setHorizontalAlignment((int) CENTER_ALIGNMENT);
         sidePanel.add(usericon);
@@ -284,27 +287,16 @@ public class Student extends JFrame implements ActionListener, WindowStateListen
             JOptionPane.showMessageDialog(this, new ImageIcon(bufferedImage), "Profile Picture", JOptionPane.PLAIN_MESSAGE);
         }
         else if(ae.getSource() == logoutBtn){
-            java.util.Date dt = new java.util.Date();
-            DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
-            String last_Login = dateFormat.format(dt);
-            try{
-                DBConnection c1 = new DBConnection();
-
-                String q = "update Student "
-                        + "Set Last_Login = '"+ last_Login +"'"
-                        + "Where stdID = '"+ StudentLogin.currentStudentID +"'";
-
-                int x = c1.s.executeUpdate(q);
-                if(x == 0){
-                JOptionPane.showMessageDialog(null, "Got an Error");
-                }else{
-                    JOptionPane.showMessageDialog(null, "Loggin Out...");
-                     new Main();
-                     dispose();
-                }
-            }catch(Exception ex){
-                ex.printStackTrace();
+            int studentId = com.elearning.config.SessionContext.getUserIdOrDefault(StudentLogin.currentStudentID);
+            try {
+                com.elearning.dao.UserDao userDao = new com.elearning.dao.UserDao();
+                userDao.updateLastLogin(studentId, com.elearning.model.Role.STUDENT);
+            } catch (Exception ignored) {
             }
+            com.elearning.config.SessionContext.clear();
+            JOptionPane.showMessageDialog(null, "Logging Out...");
+            new Main();
+            dispose();
         }
         else if(ae.getSource() == inboxBtn){
             new Inbox();

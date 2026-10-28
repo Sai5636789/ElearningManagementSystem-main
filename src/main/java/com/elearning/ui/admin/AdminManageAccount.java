@@ -85,37 +85,23 @@ public class AdminManageAccount extends JFrame implements ActionListener{
             new AdminChangeEmail();
         }
         else if(ae.getSource() == b4){
-            String fname = null;
-            JFileChooser fchoser=new JFileChooser();
-            fchoser.showOpenDialog(null);
-            f = fchoser.getSelectedFile();
-            fname = f.getAbsolutePath();
-            ImageIcon micon=new ImageIcon(fname);
-            File image=new File(fname);
-            try {
-                fis = new FileInputStream(image);
-            } catch (FileNotFoundException ex) {
-                Logger.getLogger(AdminManageAccount.class.getName()).log(Level.SEVERE, null, ex);
-            }
-
-            DBConnection c1 = new DBConnection();
-            try {
-                PreparedStatement ps = c1.c.prepareStatement("update Admin SET picture =? Where Adminid =?");
-                ps.setBinaryStream(1,(InputStream)fis,(int)f.length());
-                ps.setInt(2, AdminLogin.currentAdminID);
-                int x =  ps.executeUpdate();
-                if(x == 0){
-                   JOptionPane.showMessageDialog(null, "Got Some Error");
-               }else{
-                   JOptionPane.showMessageDialog(null, "Profile updated Successfully!");
-                    dispose();
-               }
-                ps.close();
-            } catch (Exception exception) {
-                exception.printStackTrace();
-            }
-            finally{
-                c1.Close();
+            JFileChooser fchoser = new JFileChooser();
+            int result = fchoser.showOpenDialog(this);
+            if (result == JFileChooser.APPROVE_OPTION && fchoser.getSelectedFile() != null) {
+                File image = fchoser.getSelectedFile();
+                int adminId = com.elearning.config.SessionContext.getUserIdOrDefault(AdminLogin.currentAdminID);
+                try (FileInputStream fis = new FileInputStream(image)) {
+                    com.elearning.dao.UserDao userDao = new com.elearning.dao.UserDao();
+                    boolean success = userDao.updateProfilePicture(adminId, com.elearning.model.Role.ADMIN, fis, (int) image.length());
+                    if (success) {
+                        JOptionPane.showMessageDialog(this, "Profile updated Successfully!");
+                        dispose();
+                    } else {
+                        JOptionPane.showMessageDialog(this, "Failed to update profile", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                } catch (Exception exception) {
+                    JOptionPane.showMessageDialog(this, "Error: " + exception.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+                }
             }
         }
         else if(ae.getSource() == b5){

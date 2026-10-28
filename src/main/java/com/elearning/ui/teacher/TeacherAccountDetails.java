@@ -51,26 +51,23 @@ public class TeacherAccountDetails extends JFrame implements ActionListener{
         lblEmailAddress.setBounds(58, 324, 124, 36);
         contentPane.add(lblEmailAddress);
         
-        String firstName = null,lastName = null, 
-                emailId = null, userName = null, 
-                password = null, userGender = null;
-        try{
-            DBConnection c1 = new DBConnection();
-            String q = "select * from Teacher where teacherID = '"+ TeacherLogin.currentTeacherID +"'";
-
-            ResultSet rs = c1.s.executeQuery(q);
-            if(rs.next()){
-                firstName = rs.getString("fname");
-                lastName = rs.getString("lname");
-                emailId = rs.getString("Email_ID");
-                userName = rs.getString("username");
-                password = rs.getString("password");
-                userGender = rs.getString("Gender");
-            }else{
-                JOptionPane.showMessageDialog(null, "Not Found");
+        String firstName = null, lastName = null, emailId = null, userName = null, userGender = null;
+        try {
+            int teacherId = com.elearning.config.SessionContext.isLoggedIn() ?
+                    com.elearning.config.SessionContext.getCurrentUserId() : TeacherLogin.currentTeacherID;
+            java.util.Optional<com.elearning.model.User> userOpt = new com.elearning.dao.UserDao().findById(teacherId, com.elearning.model.Role.TEACHER);
+            if (userOpt.isPresent()) {
+                com.elearning.model.User u = userOpt.get();
+                firstName = u.getFirstName();
+                lastName = u.getLastName();
+                emailId = u.getEmail();
+                userName = u.getUsername();
+                userGender = u.getGender();
+            } else {
+                JOptionPane.showMessageDialog(null, "Teacher record not found");
             }
-        }catch(HeadlessException | NumberFormatException | SQLException e){
-            e.printStackTrace();
+        } catch (SQLException e) {
+            org.slf4j.LoggerFactory.getLogger(TeacherAccountDetails.class).error("Error loading teacher details", e);
         }
         
  
@@ -117,7 +114,7 @@ public class TeacherAccountDetails extends JFrame implements ActionListener{
         passwordField.setFont(new Font("Tahoma", Font.PLAIN, 32));
         passwordField.setBounds(707, 235, 228, 50);
         passwordField.setEditable(false);
-        passwordField.setText(password);
+        passwordField.setText("••••••••");
         contentPane.add(passwordField);
         
         JLabel lblGender = new JLabel("Gender");

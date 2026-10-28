@@ -66,36 +66,24 @@ public class Message extends JFrame implements ActionListener{
     @Override
     public void actionPerformed(ActionEvent e) {
         if(e.getSource() == sendBtn){
-            String messageStr = messageTextArea.getText();
-            java.util.Date dt = new java.util.Date();
-            DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
-            String time_Stamp = dateFormat.format(dt);
-            try{
-                DBConnection c1 = new DBConnection();
+            String messageStr = messageTextArea.getText().trim();
+            if (messageStr.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Message cannot be empty", "Warning", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            int senderId = com.elearning.config.SessionContext.getUserIdOrDefault(StudentLogin.currentStudentID);
 
-                String q = "INSERT INTO Messages (message, time_Stamp, User_ID, toUser_ID) "
-                        + "Values ('" + messageStr +"', '" + time_Stamp +"', '" + StudentLogin.currentStudentID +"',"
-                        + " '"+ to_ID +"')";
-                int x = c1.s.executeUpdate(q);
-               String q1 = "select Max(Message_ID) As Message_ID From Messages";          
-                ResultSet rs1 = c1.s.executeQuery(q1);
-                rs1.next();
-                int Message_ID = rs1.getInt("Message_ID");
-                String q2 = "INSERT INTO MessageUsers (User_ID, Message_ID) "
-                        + "Values ('" + StudentLogin.currentStudentID +"', '"+ Message_ID +"' )"; 
-                int x2 = c1.s.executeUpdate(q2);
-                String q3 = "INSERT INTO MessageUsers (User_ID, Message_ID) "
-                        + "Values ('" + to_ID +"', '"+ Message_ID +"' )"; 
-                int x3 = c1.s.executeUpdate(q3);
-                
-                if(x == 0 || x2 == 0 || x3 == 0){
-                    JOptionPane.showMessageDialog(null, "Some Error Occured!");
-                }else{
-                    JOptionPane.showMessageDialog(null, "Message Sent");
+            try {
+                com.elearning.dao.MessageDao messageDao = new com.elearning.dao.MessageDao();
+                boolean success = messageDao.sendMessage(senderId, to_ID, messageStr);
+                if (success) {
+                    JOptionPane.showMessageDialog(this, "Message Sent");
                     dispose();
+                } else {
+                    JOptionPane.showMessageDialog(this, "Failed to send message", "Error", JOptionPane.ERROR_MESSAGE);
                 }
-        }
-            catch(Exception exception){
+            } catch(Exception exception){
+                JOptionPane.showMessageDialog(this, "Error sending message: " + exception.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
                 exception.printStackTrace();
             }
         }

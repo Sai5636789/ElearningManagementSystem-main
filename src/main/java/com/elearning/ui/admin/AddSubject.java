@@ -61,23 +61,24 @@ public class AddSubject extends JFrame implements ActionListener{
     @Override
     public void actionPerformed(ActionEvent ae){
         if(ae.getSource() == addBtn){
-            String subject_Name = subjectName.getText();
-                try{
-                    DBConnection c1 = new DBConnection();
-
-                    String q = "INSERT INTO Subjects (Name, Adminid) "
-                            + "Values ('"+ subject_Name +"', '"+ AdminLogin.currentAdminID +"')";
-                    
-                    int x = c1.s.executeUpdate(q);
-                    if(x == 0){
-                        JOptionPane.showMessageDialog(null, "This is Subject already exist");
-                    }else{
-                        JOptionPane.showMessageDialog(null, "Subject Added!");
-                        dispose();
-                    }
-                }catch(Exception e){
-                    e.printStackTrace();
+            String subject_Name = subjectName.getText().trim();
+            if (subject_Name.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Subject name cannot be empty", "Validation Error", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            try {
+                int adminId = com.elearning.config.SessionContext.getUserIdOrDefault(AdminLogin.currentAdminID);
+                com.elearning.dao.SubjectDao subjectDao = new com.elearning.dao.SubjectDao();
+                boolean success = subjectDao.addSubject(subject_Name, adminId);
+                if (success) {
+                    JOptionPane.showMessageDialog(this, "Subject Added!");
+                    dispose();
+                } else {
+                    JOptionPane.showMessageDialog(this, "This Subject already exists or could not be added");
                 }
+            } catch(Exception e){
+                JOptionPane.showMessageDialog(this, "Error adding subject: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+            }
         }
     }
     public static void main(String[] args) {

@@ -199,16 +199,15 @@ public class StudentSignup extends JFrame implements ActionListener, FocusListen
             }
         }
         else{
-            String firstName = firstname.getText();
-            String lastName = lastname.getText();
-            String emailId = email.getText();
-            String userName = username.getText();
-            String password = String.valueOf(passwordField.getPassword());
-            java.sql.Date sqlDate = new java.sql.Date(new java.util.Date().getTime());
-            String msg = "" + firstName;
-            String genderStr = "";
-            if(radioBtns.getSelection() != null)
-                genderStr = radioBtns.getSelection().getActionCommand();
+            final String firstName = firstname.getText();
+            final String lastName = lastname.getText();
+            final String emailId = email.getText();
+            final String userName = username.getText();
+            final String password = String.valueOf(passwordField.getPassword());
+            final java.sql.Date sqlDate = new java.sql.Date(new java.util.Date().getTime());
+            final String msg = firstName;
+            final String genderStr = (radioBtns.getSelection() != null)
+                    ? radioBtns.getSelection().getActionCommand() : "";
 
             if(fnameValidation.getText().isEmpty() && 
             LnameValidation.getText().isEmpty() && 
@@ -219,31 +218,40 @@ public class StudentSignup extends JFrame implements ActionListener, FocusListen
                 JOptionPane.showMessageDialog(null, "Please Fill All Fields !");
                 }
                 else{
-                    try{
-                        DBConnection c1 = new DBConnection();
-
-                        PreparedStatement ps = c1.c.prepareStatement("Insert into Student (fname, lname, Email_ID, username, password, Registration_Date, Gender, picture) "
-                                + "values(?,?,?,?,?,?,?,?)");
-                        ps.setString(1, firstName);
-                        ps.setString(2, lastName);
-                        ps.setString(3, emailId);
-                        ps.setString(4, userName);
-                        ps.setString(5, password);
-                        ps.setDate(6, sqlDate);
-                        ps.setString(7, genderStr);
-                        ps.setBinaryStream(8,(InputStream)fis,(int)f.length());
-                        int x =  ps.executeUpdate();
-                        if(x == 0){
-                            JOptionPane.showMessageDialog(null, "This is User already exist");
-                        }else{
-                            JOptionPane.showMessageDialog(null, "Welcome, "+ msg + " Your account is successfully created."
-                                    + "You can Now Log into your Account.");
-                            setVisible(false);
-                            new StudentLogin();
+                    registerButton.setEnabled(false);
+                    new javax.swing.SwingWorker<Boolean, Void>() {
+                        @Override
+                        protected Boolean doInBackground() throws Exception {
+                            com.elearning.model.User u = new com.elearning.model.User();
+                            u.setRole(com.elearning.model.Role.STUDENT);
+                            u.setFirstName(firstName);
+                            u.setLastName(lastName);
+                            u.setEmail(emailId);
+                            u.setUsername(userName);
+                            u.setPassword(password);
+                            u.setGender(genderStr);
+                            return new com.elearning.dao.UserDao().register(u, fis, (int) f.length());
                         }
-                    }catch(Exception e){
-                        e.printStackTrace();
-                    }
+
+                        @Override
+                        protected void done() {
+                            registerButton.setEnabled(true);
+                            try {
+                                boolean ok = get();
+                                if (!ok) {
+                                    JOptionPane.showMessageDialog(StudentSignup.this, "This user already exists", "Registration Failed", JOptionPane.WARNING_MESSAGE);
+                                } else {
+                                    JOptionPane.showMessageDialog(StudentSignup.this, "Welcome, " + msg + "! Your account was successfully created.");
+                                    setVisible(false);
+                                    new StudentLogin();
+                                    dispose();
+                                }
+                            } catch (Exception ex) {
+                                org.slf4j.LoggerFactory.getLogger(StudentSignup.class).error("Registration failed", ex);
+                                JOptionPane.showMessageDialog(StudentSignup.this, "Registration failed: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                            }
+                        }
+                    }.execute();
                 }
             }
             else{
