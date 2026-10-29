@@ -143,7 +143,3 @@ The original database had plaintext passwords. The fallback lets legacy accounts
 
 ---
 
-## License
-
-MIT License.  
-Original work © Suwaid Aslam. Refactoring and modernization by [your name].
